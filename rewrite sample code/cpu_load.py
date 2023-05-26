@@ -37,7 +37,7 @@ def sum_array(array):
 
 
 def compute_cpu_load(start_use, end_use, verbose):
-    diff_idle = end_use.idle - start_use.idle
+    diff_idle = end_use[3] - start_use[3]
     start_total = sum_array(start_use)
     end_total = sum_array(end_use)
     diff_total = end_total - start_total
