@@ -7,9 +7,6 @@ Prerequisite: OpenSSH, VirtualBox (with Unix-based VM)
 Test Setup:
 
 1.Set up a VirtualBox VM:
-1.1 Download and install VirtualBox on your machine.
-1.2 Create a new virtual machine using the VirtualBox Manager.
-1.3 Install a Unix-based operating system on the virtual machine following the installation steps.
 
 2.Set up the SSH Server and Client:
 2.1 Launch the VM and log in as the administrator or a user with administrative privileges
