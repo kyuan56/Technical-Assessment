@@ -5,7 +5,7 @@ import stat
 import os
 
 import psutil
-
+#To install psutil, run the following command: pip install psutil
 
 def get_params(args):
     disk_device = "/dev/sda"
