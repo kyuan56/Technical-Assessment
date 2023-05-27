@@ -1,0 +1,29 @@
+vboxuser@newvm:~/Documents$ python3 cpuload2.py --verbose
+
+2023-05-26 21:50:18,946 - INFO - Testing CPU load when reading 4096 MiB from /dev/sda
+
+2023-05-26 21:50:18,947 - INFO - Maximum acceptable CPU load is 30
+
+[sudo] password for vboxuser: 
+
+2023-05-26 21:50:23,781 - INFO - Beginning disk read....
+
+4096+0 records in
+
+4096+0 records out
+
+4294967296 bytes (4.3 GB, 4.0 GiB) copied, 5.79792 s, 741 MB/s
+
+2023-05-26 21:50:29,595 - INFO - Disk read complete!
+
+2023-05-26 21:50:29,599 - INFO - Start CPU time = 22242.46
+
+2023-05-26 21:50:29,603 - INFO - End CPU time = 22251.670000000002
+
+2023-05-26 21:50:29,604 - INFO - CPU time used = 5.210000000002765
+
+2023-05-26 21:50:29,604 - INFO - Total elapsed time = 9.210000000002765
+
+2023-05-26 21:50:29,604 - INFO - Detected disk read CPU load is 56.56894679697287
+
+vboxuse
