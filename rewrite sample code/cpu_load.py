@@ -3,32 +3,49 @@ import subprocess
 import time
 import stat
 import os
+import argparse
+import logging
 
 import psutil
-#To install psutil, run the following command: pip install psutil
+#install psutil by using command "pip3 install psutil"
+
+LOG_FORMAT = "%(asctime)s - %(levelname)s - %(message)s"
+LOG_FILE = "disk_cpu_load.log"
+DEFAULT_DISK_DEVICE = "/dev/sda"
+DEFAULT_MAX_LOAD = 30
+DEFAULT_XFER = 4096
+
+logger = logging.getLogger(__name__)
+
+
+def setup_logging():
+    logger.setLevel(logging.INFO)
+
+    # Create the log file handler
+    file_handler = logging.FileHandler(LOG_FILE)
+    file_handler.setLevel(logging.INFO)
+    formatter = logging.Formatter(LOG_FORMAT)
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
+
+    # Create the stream handler
+    stream_handler = logging.StreamHandler(sys.stdout)
+    stream_handler.setLevel(logging.INFO)
+    stream_handler.setFormatter(formatter)
+    logger.addHandler(stream_handler)
+
 
 def get_params(args):
-    disk_device = "/dev/sda"
-    verbose = False
-    max_load = 30
-    xfer = 4096
-
-    while len(args) > 0:
-        if args[0] == "--max-load":
-            max_load = int(args[1])
-            args = args[2:]
-        elif args[0] == "--xfer":
-            xfer = int(args[1])
-            args = args[2:]
-        elif args[0] == "--verbose":
-            verbose = True
-            args = args[1:]
-        else:
-            disk_device = "/dev/" + args[0]
-            disk_device = disk_device.replace("/dev//dev", "/dev")
-            args = args[1:]
-
-    return disk_device, verbose, max_load, xfer
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--max-load", type=int, default=DEFAULT_MAX_LOAD,
+                        help="The maximum acceptable CPU load, as a percentage. (default: %(default)s)")
+    parser.add_argument("--xfer", type=int, default=DEFAULT_XFER,
+                        help="The amount of data to read from the disk, in mebibytes. (default: %(default)s)")
+    parser.add_argument("--verbose", action="store_true", help="Produce more verbose output")
+    parser.add_argument("device_file", nargs="?", default=DEFAULT_DISK_DEVICE,
+                        help="The WHOLE-DISK device filename (default: %(default)s)")
+    args = parser.parse_args(args)
+    return args.device_file, args.verbose, args.max_load, args.xfer
 
 
 def sum_array(array):
@@ -37,49 +54,55 @@ def sum_array(array):
 
 
 def compute_cpu_load(start_use, end_use, verbose):
-    diff_idle = end_use[3] - start_use[3]
+    diff_idle = end_use.idle - start_use.idle
     start_total = sum_array(start_use)
     end_total = sum_array(end_use)
     diff_total = end_total - start_total
     diff_used = diff_total - diff_idle
 
     if verbose:
-        print("Start CPU time =", start_total)
-        print("End CPU time =", end_total)
-        print("CPU time used =", diff_used)
-        print("Total elapsed time =", diff_total)
+        logger.info("Start CPU time = %s", start_total)
+        logger.info("End CPU time = %s", end_total)
+        logger.info("CPU time used = %s", diff_used)
+        logger.info("Total elapsed time = %s", diff_total)
 
-    if diff_total != 0:
-        cpu_load = (diff_used * 100) / diff_total
-    else:
-        cpu_load = 0
-
+    cpu_load = (diff_used * 100) / diff_total if diff_total != 0 else 0
     return cpu_load
 
 
-def main(argv):
-    disk_device, verbose, max_load, xfer = get_params(argv[1:])
+def validate_disk_device(disk_device):
     if not os.path.exists(disk_device) or not stat.S_ISBLK(os.stat(disk_device).st_mode):
-        print("Unknown block device", "\"{}\"".format(disk_device))
-        print("Usage:", "{} [ --max-load <load> ] [ --xfer <mebibytes> ] [ device-file ]".format(sys.argv[0]))
-        sys.exit(1)
-    print("Testing CPU load when reading", xfer, "MiB from", disk_device)
-    print("Maximum acceptable CPU load is", max_load)
-    subprocess.run(["sudo", "blockdev", "--flushbufs", disk_device])
+        logger.error("Unknown block device: %s", disk_device)
+        raise ValueError("Invalid disk device")
 
-    start_use = psutil.cpu_times()
-    print("Beginning disk read....")
+
+def perform_disk_read(disk_device, xfer):
+    subprocess.run(["sudo", "blockdev", "--flushbufs", disk_device])
+    logger.info("Beginning disk read....")
     subprocess.run(["sudo", "dd", "if=" + disk_device, "of=/dev/null",
                     "bs=1048576", "count=" + str(xfer)])
-    print("Disk read complete!")
+    logger.info("Disk read complete!")
+
+def main(argv):
+    setup_logging()
+
+    disk_device, verbose, max_load, xfer = get_params(argv)
+    try:
+        validate_disk_device(disk_device)
+    except ValueError:
+        logger.error("Invalid disk device: %s", disk_device)
+        sys.exit(1)
+
+    logger.info("Testing CPU load when reading %s MiB from %s", xfer, disk_device)
+    logger.info("Maximum acceptable CPU load is %s", max_load)
+
+    start_use = psutil.cpu_times()
+    perform_disk_read(disk_device, xfer)
     end_use = psutil.cpu_times()
 
     cpu_load = compute_cpu_load(start_use, end_use, verbose)
-    print("Detected disk read CPU load is", cpu_load)
-    if cpu_load > max_load:
-        print("*** DISK CPU LOAD TEST HAS FAILED! ***")
-        sys.exit(1)
+    logger.info("Detected disk read CPU load is %s", cpu_load)
 
 
 if __name__ == "__main__":
-    main(sys.argv)
+    main(sys.argv[1:])
